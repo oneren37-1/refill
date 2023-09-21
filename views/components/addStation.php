@@ -14,7 +14,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
         //Проверяем расширение файла
         if($file_type === 'image/jpg' || $file_type === 'image/jpeg' || $file_type === 'image/png') {
             //Задаем путь для сохранения файла
-            $target_dir = dirname(__DIR__)."\..\uploads\\";
+            $target_dir = dirname(__DIR__)."/../uploads/";
             $time = time();
             $target_file = $target_dir . $time . basename($file_name);
             //Перемещаем файл в нужную директорию
