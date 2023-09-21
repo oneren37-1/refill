@@ -2,7 +2,7 @@
 global $conn;
 
 if($_SERVER["REQUEST_METHOD"] == "POST") {
-    if(isset($_POST['fuel_name']) && isset($_POST['fuel_name'])){
+    if(isset($_POST['fuel_name']) && isset($_POST['fuel_price'])){
         $fuelName = $_POST['fuel_name'];
         $fuelPrice = $_POST['fuel_price'];
 
