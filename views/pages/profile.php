@@ -13,6 +13,11 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
         $stmt->bindParam(':s', $status);
 
         if ($stmt->execute()) {
+            if ($_POST['update_order_status'] == 3) {
+                $stmt = $conn->prepare("UPDATE `order` SET delivery_date=current_timestamp WHERE oid=:oid;");
+                $stmt->bindParam(':oid', $oid);
+                $stmt->execute();
+            }
             echo "<meta http-equiv='refresh' content='0'>";
         } else {
             echo "Произошла ошибка при выполнении запроса!";
@@ -126,6 +131,9 @@ while ($row = $stmt->fetch()) {
                         <p><strong>Количество:</strong> <?php echo($order["amount"])?> л</p>
                         <p><strong>Цена:</strong> <?php echo($order["price"])?></p>
                         <p><strong>Дата формирования заказа:</strong> <?php echo($order["creation_date"])?></p>
+                        <?php if ($order["delivery_date"] != "") : ?>
+                            <p><strong>Дата доставки заказа:</strong> <?php echo($order["delivery_date"])?></p>
+                        <?php endif; ?>
                         <?php if ($order["status"] != "Отменен" && $order["status"] != "Вручен"): ?>
                             <form method="post" enctype="multipart/form-data" class="mb-2">
                                 <input type="text" hidden name="update_order_id" value="<?php echo($order["oid"])?>">
