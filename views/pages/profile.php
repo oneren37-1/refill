@@ -18,6 +18,15 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
                 $stmt->bindParam(':oid', $oid);
                 $stmt->execute();
             }
+
+            if ($_POST['update_order_status'] == 2 && isset($_POST['delivery_man'])) {
+                $delivery_man = $_POST['delivery_man'];
+
+                $stmt = $conn->prepare("UPDATE `order` SET delivery_man=:dm WHERE oid=:oid;");
+                $stmt->bindParam(':oid', $oid);
+                $stmt->bindParam(':dm', $delivery_man);
+                $stmt->execute();
+            }
             echo "<meta http-equiv='refresh' content='0'>";
         } else {
             echo "Произошла ошибка при выполнении запроса!";
@@ -25,9 +34,12 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 }
 
-$query = "SELECT * FROM orders WHERE user=:uid order by oid desc";
+$query = "SELECT * FROM orders WHERE uid=:uid order by oid desc";
 if ($_SESSION["user_role"] == 2) {
     $query = "SELECT * FROM orders order by oid desc";
+}
+if ($_SESSION["user_role"] == 3) {
+    $query = "SELECT * FROM orders where dm_uid=:uid order by oid desc";
 }
 
 $stmt = $conn->prepare($query);
@@ -39,6 +51,18 @@ $stmt->execute();
 $orders = [];
 while ($row = $stmt->fetch()) {
     array_push($orders, $row);
+}
+
+if ($_SESSION["user_role"] == 2) {
+    $query = "select * from user where role = 3";
+
+    $stmt = $conn->prepare($query);
+    $stmt->execute();
+
+    $dm = [];
+    while ($row = $stmt->fetch()) {
+        array_push($dm, $row);
+    }
 }
 
 $graph = [];
@@ -104,7 +128,7 @@ while ($row = $stmt->fetch()) {
     <div class="page-wrapper">
         <h1><?php echo($_SESSION["user_login"])?></h1>
         <hr/>
-        <?php if ($_SESSION["user_role"] != 2): ?>
+        <?php if ($_SESSION["user_role"] == 1): ?>
             <!-- Button trigger modal -->
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStationModal">
                 Заказать топливо
@@ -127,10 +151,33 @@ while ($row = $stmt->fetch()) {
                         <?php if ($_SESSION["user_role"] == 2): ?>
                             <p><strong>Заказчик:</strong> <?php echo($order["login"])?></p>
                         <?php endif; ?>
-                        <p><strong>Тип топлива:</strong> <?php echo($order["fuel_type"])?></p>
-                        <p><strong>Количество:</strong> <?php echo($order["amount"])?> л</p>
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr><th>Топливо</th><th>Количество</th></tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                    $data = json_decode($order["fuel"], true);
+
+                                    foreach ($data as $item) {
+                                        echo '<tr>';
+                                        echo '<td>' . $item['fuel'] . '</td>';
+                                        echo '<td>' . $item['amount'] . '</td>';
+                                        echo '</tr>';
+                                    }
+                                ?>
+                            </tbody>
+                        </table>
+
                         <p><strong>Цена:</strong> <?php echo($order["price"])?></p>
                         <p><strong>Дата формирования заказа:</strong> <?php echo($order["creation_date"])?></p>
+                        <?php if ($order["dm_login"] != "") : ?>
+                            <p><strong>Назначенный доставщик: </strong> <?php echo($order["dm_login"])?>
+                                <?php if ($order["dm_car"] != "") : ?>
+                                    <strong>на машине</strong> <?php echo($order["dm_car"])?>
+                                <?php endif; ?>
+                            </p>
+                        <?php endif; ?>
                         <?php if ($order["delivery_date"] != "") : ?>
                             <p><strong>Дата доставки заказа:</strong> <?php echo($order["delivery_date"])?></p>
                         <?php endif; ?>
@@ -146,6 +193,17 @@ while ($row = $stmt->fetch()) {
                             <form method="post" enctype="multipart/form-data">
                                 <input type="text" hidden name="update_order_id" value="<?php echo($order["oid"])?>">
                                 <input type="number" hidden name="update_order_status" value="2">
+
+                                <p>Выберите доставщика</p>
+                                <select class="form-select mb-2" name="delivery_man">
+                                    <?php foreach ($dm as $m): ?>
+                                        <option
+                                            <?php if ($m["uid"] == 10) { echo("selected"); }?>
+                                                value="<?php echo($m["uid"])?>">
+                                            <?php echo($m["login"])?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
                                 <button type="submit" class="btn btn-primary">Отправить заказ</button>
                             </form>
                         <?php endif; ?>

@@ -27,6 +27,7 @@ while ($row = $stmt->fetch()) {
     <?php include(dirname(__DIR__).'/components/header.php');?>
     <div class="page-wrapper">
         <?php include(dirname(__DIR__).'/components/fuelPrice.php');?>
+        <?php include(dirname(__DIR__).'/components/fuel_picker.php');?>
 
         <div class="container mt-3 mb-5">
             <h1>Заправки</h1>
