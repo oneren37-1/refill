@@ -2,7 +2,21 @@
 
 global $conn;
 require(dirname(__DIR__).'/utils/db_connection.php');
+include(dirname(__DIR__) . '/utils/email_sender.php');
 session_start();
+
+if ($_SESSION["user_role"] == 2) {
+    $query = "select * from user where role = 3";
+
+    $stmt = $conn->prepare($query);
+    $stmt->execute();
+
+    $dm = [];
+    while ($row = $stmt->fetch()) {
+        array_push($dm, $row);
+    }
+}
+
 if($_SERVER["REQUEST_METHOD"] == "POST") {
     if(isset($_POST['update_order_id']) && isset($_POST['update_order_status'])){
         $oid = $_POST['update_order_id'];
@@ -26,6 +40,21 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
                 $stmt->bindParam(':oid', $oid);
                 $stmt->bindParam(':dm', $delivery_man);
                 $stmt->execute();
+
+                $dmLogin = "";
+                $dmCar = "";
+                for ($j = 0; $j < count($dm); $j++) {
+                    if ($dm[$j]["uid"] == $delivery_man) {
+                        $dmLogin = $dm[$j]["login"];
+                        $dmCar = $dm[$j]["car"];
+                        break;
+                    }
+                }
+
+                $message = "На ваш заказ №".$oid." назначен водитель \n\n";
+                $message .= $dmLogin." приедет на машине ".$dmCar." \n\n";
+
+                sendEmail($_SESSION["user_email"], $message);
             }
             echo "<meta http-equiv='refresh' content='0'>";
         } else {
@@ -51,18 +80,6 @@ $stmt->execute();
 $orders = [];
 while ($row = $stmt->fetch()) {
     array_push($orders, $row);
-}
-
-if ($_SESSION["user_role"] == 2) {
-    $query = "select * from user where role = 3";
-
-    $stmt = $conn->prepare($query);
-    $stmt->execute();
-
-    $dm = [];
-    while ($row = $stmt->fetch()) {
-        array_push($dm, $row);
-    }
 }
 
 $graph = [];
@@ -208,7 +225,7 @@ while ($row = $stmt->fetch()) {
                             </form>
                         <?php endif; ?>
 
-                        <?php if ($_SESSION["user_role"] == 2 && $order["status"] == "В пути"): ?>
+                        <?php if (($_SESSION["user_role"] == 2 || $_SESSION["user_role"] == 3) && $order["status"] == "В пути"): ?>
                             <form method="post" enctype="multipart/form-data">
                                 <input type="text" hidden name="update_order_id" value="<?php echo($order["oid"])?>">
                                 <input type="number" hidden name="update_order_status" value="3">
