@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Хост: 127.0.0.1:3306
--- Время создания: Сен 29 2023 г., 05:11
+-- Время создания: Сен 29 2023 г., 21:47
 -- Версия сервера: 8.0.30
 -- Версия PHP: 8.1.9
 
@@ -25,34 +25,6 @@ DELIMITER $$
 --
 -- Процедуры
 --
-DROP PROCEDURE IF EXISTS `create_order`$$
-CREATE PROCEDURE `create_order` (IN `u` INT, IN `l` TEXT, IN `f` TEXT)   BEGIN
-    insert into `order` (user, location, price)
-    values (u, l, (
-        select sum(val) from (
-                 select fuel.price*amount as val
-                 from JSON_TABLE(f, '$[*]'
-                                 COLUMNS (
-                                     fuel VARCHAR(255) PATH '$.fuel',
-                                     amount INT PATH '$.amount'
-                                     )
-                          ) AS jt join fuel on jt.fuel = fuel.fid
-             ) t
-        )
-    );
-
-    INSERT INTO order_fuel (`order`, fuel_type, amount)
-    SELECT ord.o, jt.fuel, jt.amount
-    FROM JSON_TABLE(f, '$[*]'
-         COLUMNS (
-             fuel VARCHAR(255) PATH '$.fuel',
-             amount INT PATH '$.amount'
-             )
-     ) AS jt cross join (
-         select max(oid) o from `order`
-    ) ord;
-END$$
-
 DROP PROCEDURE IF EXISTS `create_station`$$
 CREATE PROCEDURE `create_station` (IN `i` TEXT, IN `loc` TEXT, IN `d` TEXT)   BEGIN
     insert into station (img, location, description)
@@ -193,7 +165,7 @@ CREATE TABLE IF NOT EXISTS `order` (
   `user` int NOT NULL,
   `location` text NOT NULL,
   `status` int NOT NULL DEFAULT '1',
-  `creation_date` datetime NOT NULL DEFAULT (now()),
+  `creation_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `delivery_date` datetime DEFAULT NULL,
   `price` double NOT NULL DEFAULT '0',
   `delivery_man` int DEFAULT NULL,
@@ -248,7 +220,15 @@ INSERT INTO `order` (`oid`, `user`, `location`, `status`, `creation_date`, `deli
 (35, 8, 'saint-petersburg', 4, '2023-09-29 04:52:04', '2023-09-29 04:52:59', 513.45, 11),
 (36, 8, 'saint-petersburg', 1, '2023-09-29 05:05:17', NULL, 102.06, NULL),
 (37, 8, 'saint-petersburg', 4, '2023-09-29 05:05:39', NULL, 250.59, NULL),
-(38, 8, 'saint-petersburg', 3, '2023-09-29 05:05:58', '2023-09-29 05:06:31', 266.08, 11);
+(38, 8, 'saint-petersburg', 3, '2023-09-29 05:05:58', '2023-09-29 05:06:31', 266.08, 11),
+(39, 8, 'saint-petersburg', 1, '2023-09-29 20:14:23', NULL, 0, NULL),
+(40, 8, 'saint-petersburg', 1, '2023-09-29 20:15:51', NULL, 0, NULL),
+(41, 8, 'saint-petersburg', 1, '2023-09-29 20:15:56', NULL, 0, NULL),
+(42, 8, 'saint-petersburg', 1, '2023-09-29 20:16:21', NULL, 0, NULL),
+(43, 8, 'saint-petersburg', 1, '2023-09-29 20:18:26', NULL, 0, NULL),
+(44, 8, 'saint-petersburg', 1, '2023-09-29 20:18:58', NULL, 0, NULL),
+(45, 8, 'saint-petersburg', 1, '2023-09-29 20:20:10', NULL, 0, NULL),
+(46, 8, 'saint-petersburg', 1, '2023-09-29 20:21:06', NULL, 0, NULL);
 
 -- --------------------------------------------------------
 
@@ -269,7 +249,7 @@ CREATE TABLE IF NOT EXISTS `orders` (
 ,`dm_uid` int
 ,`dm_login` text
 ,`dm_car` text
-,`fuel` json
+,`fuel` text
 );
 
 -- --------------------------------------------------------
@@ -322,7 +302,13 @@ INSERT INTO `order_fuel` (`order`, `fuel_type`, `amount`) VALUES
 (35, 4, 5),
 (37, 1, 1),
 (37, 3, 3),
-(38, 3, 4);
+(38, 3, 4),
+(44, 3, 1),
+(44, 6, 2),
+(45, 3, 1),
+(45, 6, 2),
+(46, 3, 1),
+(46, 6, 2);
 
 -- --------------------------------------------------------
 
@@ -469,7 +455,7 @@ CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `comments`  AS S
 DROP TABLE IF EXISTS `graph`;
 
 DROP VIEW IF EXISTS `graph`;
-CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `graph`  AS SELECT `f`.`name` AS `fuel`, sum(`order_fuel`.`amount`) AS `c` FROM (`order_fuel` join `fuel` `f` on((`f`.`fid` = `order_fuel`.`fuel_type`))) GROUP BY `f`.`fid``fid`  ;
+CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `graph`  AS SELECT `f`.`name` AS `fuel`, sum(`order_fuel`.`amount`) AS `c` FROM (`order_fuel` join `fuel` `f` on((`f`.`fid` = `order_fuel`.`fuel_type`))) GROUP BY `f`.`fid`  ;
 
 -- --------------------------------------------------------
 
@@ -479,7 +465,7 @@ CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `graph`  AS SELE
 DROP TABLE IF EXISTS `orders`;
 
 DROP VIEW IF EXISTS `orders`;
-CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `orders`  AS SELECT `t`.`oid` AS `oid`, `t`.`uid` AS `uid`, `t`.`login` AS `login`, `t`.`price` AS `price`, `t`.`location` AS `location`, `t`.`status` AS `status`, `t`.`creation_date` AS `creation_date`, `t`.`delivery_date` AS `delivery_date`, `t`.`dm_uid` AS `dm_uid`, `t`.`dm_login` AS `dm_login`, `t`.`dm_car` AS `dm_car`, `t`.`fuel` AS `fuel` FROM (select `order`.`oid` AS `oid`,`u`.`uid` AS `uid`,`u`.`login` AS `login`,`order`.`price` AS `price`,`order`.`location` AS `location`,`s`.`name` AS `status`,`order`.`creation_date` AS `creation_date`,`order`.`delivery_date` AS `delivery_date`,`d`.`uid` AS `dm_uid`,`d`.`login` AS `dm_login`,`d`.`car` AS `dm_car`,(select json_arrayagg(json_object('fuel',`f3`.`name`,'amount',`order_fuel`.`amount`)) AS `data` from (`order_fuel` join `fuel` `f3` on((`order_fuel`.`fuel_type` = `f3`.`fid`))) where (`order_fuel`.`order` = `order`.`oid`)) AS `fuel` from (((`order` join `user` `u` on((`order`.`user` = `u`.`uid`))) join `order_status` `s` on((`s`.`sid` = `order`.`status`))) left join `user` `d` on((`d`.`uid` = `order`.`delivery_man`)))) AS `t` WHERE (`t`.`fuel` is not null)  ;
+CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `orders`  AS SELECT `t`.`oid` AS `oid`, `t`.`uid` AS `uid`, `t`.`login` AS `login`, `t`.`price` AS `price`, `t`.`location` AS `location`, `t`.`status` AS `status`, `t`.`creation_date` AS `creation_date`, `t`.`delivery_date` AS `delivery_date`, `t`.`dm_uid` AS `dm_uid`, `t`.`dm_login` AS `dm_login`, `t`.`dm_car` AS `dm_car`, `t`.`fuel` AS `fuel` FROM (select `order`.`oid` AS `oid`,`u`.`uid` AS `uid`,`u`.`login` AS `login`,`order`.`price` AS `price`,`order`.`location` AS `location`,`s`.`name` AS `status`,`order`.`creation_date` AS `creation_date`,`order`.`delivery_date` AS `delivery_date`,`d`.`uid` AS `dm_uid`,`d`.`login` AS `dm_login`,`d`.`car` AS `dm_car`,`t56`.`val` AS `fuel` from ((((`order` join `user` `u` on((`order`.`user` = `u`.`uid`))) join `order_status` `s` on((`s`.`sid` = `order`.`status`))) left join `user` `d` on((`d`.`uid` = `order`.`delivery_man`))) join (select concat(concat('[',group_concat(`t1`.`val` separator ',')),']') AS `val`,`t1`.`ord` AS `ord` from (select json_object('fuel',`f3`.`name`,'amount',`order_fuel`.`amount`) AS `val`,`order_fuel`.`order` AS `ord` from (`order_fuel` join `fuel` `f3` on((`order_fuel`.`fuel_type` = `f3`.`fid`)))) `t1` group by `t1`.`ord`) `t56` on((`t56`.`ord` = `order`.`oid`)))) AS `t` WHERE (`t`.`fuel` is not null)  ;
 
 --
 -- Ограничения внешнего ключа сохраненных таблиц

@@ -13,25 +13,43 @@ while ($row = $stmt->fetch()) {
 
 if($_SERVER["REQUEST_METHOD"] == "POST") {
     if (isset($_POST["location"])){
-        $fuel = [];
+        $orderSum = 0;
         for ($i = 0; $i < count($_POST["fuel"]); $i++) {
-            $f = [
-                'fuel' => $_POST["fuel"][$i],
-                'amount' => $_POST["amount"][$i]
-            ];
-            $fuel[] = $f;
+            $fuelPrice = 0;
+            for ($j = 0; $j < count($fuel); $j++) {
+                if ($fuel[$j]["fid"] == $_POST["fuel"][$i]) {
+                    $fuelPrice = $fuel[$j]["price"];
+                    break;
+                }
+            }
+
+            $orderSum += $_POST["amount"][$i] * $fuelPrice;
         }
 
         $fuelParam = json_encode($fuel);
-
-        $stmt = $conn->prepare("call create_order (:user, :location, :fuel)");
+        $query = "insert into `order` (user, location, price)";
+        $query .= "values (:user, :location, :price)";
+        $stmt = $conn->prepare($query);
         $stmt->bindParam(':user', $_SESSION["user_uid"]);
         $stmt->bindParam(':location', $_POST["location"]);
-        $stmt->bindParam(':fuel', $fuelParam);
-
-        $f = ['92', '95', '98', '100', 'ДТ', 'Газ'];
+        $stmt->bindParam(':price', $orderSum);
 
         if ($stmt->execute()) {
+            $stmt = $conn->prepare("select max(oid) as moid from `order`");
+            $stmt->execute();
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            $oid = $row["moid"];
+
+            for ($i = 0; $i < count($_POST["fuel"]); $i++) {
+                $stmt = $conn->prepare("insert into order_fuel(`order`, fuel_type, amount) values(:oid, :ft, :a)");
+                $stmt->bindParam(':oid', $oid);
+                $stmt->bindParam(':ft', $_POST["fuel"][$i]);
+                $stmt->bindParam(':a', $_POST["amount"][$i]);
+                $stmt->execute();
+            }
+
+            $f = ['92', '95', '98', '100', 'ДТ', 'Газ'];
+
             $message = "Уважаемый " . $_SESSION["user_login"] . ", новый заказ сформирован \n\n";
             $message .= "Указаннная локация - " . $_POST["location"] . "\n\n";
             $message .= "----------\n";
@@ -45,8 +63,6 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
             sendEmail($_SESSION["user_email"], $message);
 
             echo "<meta http-equiv='refresh' content='0'>";
-        } else {
-            echo "Произошла ошибка при выполнении запроса!";
         }
     }
 }
