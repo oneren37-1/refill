@@ -51,10 +51,16 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
                     }
                 }
 
-                $message = "На ваш заказ №".$oid." назначен водитель \n\n";
-                $message .= $dmLogin." приедет на машине ".$dmCar." \n\n";
+                $stmt = $conn->prepare("SELECT u.email FROM `order` o join user u on u.uid = o.user where o.oid = :oid");
+                $stmt->bindParam(':oid', $oid);
+                if ($stmt->execute()) {
+                    $data = $stmt->fetch(PDO::FETCH_ASSOC);
 
-                sendEmail($_SESSION["user_email"], $message);
+                    $message = "На ваш заказ №".$oid." назначен водитель \n\n";
+                    $message .= $dmLogin." приедет на машине ".$dmCar." \n\n";
+
+                    sendEmail($data["email"], $message);
+                }
             }
             echo "<meta http-equiv='refresh' content='0'>";
         } else {
