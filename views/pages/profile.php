@@ -2,7 +2,7 @@
 
 global $conn;
 require(dirname(__DIR__).'/utils/db_connection.php');
-include(dirname(__DIR__) . '/utils/email_sender.php');
+require(dirname(__DIR__) . '/utils/email_sender.php');
 session_start();
 
 if ($_SESSION["user_role"] == 2) {

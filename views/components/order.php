@@ -1,8 +1,6 @@
 <?php
 global $conn;
 
-include(dirname(__DIR__) . '/utils/email_sender.php');
-
 $stmt = $conn->prepare("SELECT * FROM fuel");
 $stmt->execute();
 
